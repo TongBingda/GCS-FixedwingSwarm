@@ -129,11 +129,14 @@ def main_control_panel():
         [sg.Button('Version'), sg.StatusBar(text="Information output here.", size=(50,1), key="-Status-")]
     ]
     
-    window = sg.Window("UAV Swarm Control Panel", layout, finalize=True, keep_on_top=False)
+    window = sg.Window("UAV Swarm Control Panel", layout, finalize=True, keep_on_top=False, enable_close_attempted_event=True)
 
     return window
 
 def control_tab(thisport):
+    mode_list = ["MANUAL", "CIRCLE", "STABILIZE", "TRAINING", "ACRO", "FBWA", "FBWB",
+                 "CRUISE", "AUTOTUNE", "AUTO", "RTL", "LOITER", "TAKEOFF", "GUIDED",
+                 "QSTABILIZE", "QLOITER", "QLAND", "QRTL"]
     # vehicle control tab
     tab = [
             # new column 1
@@ -159,7 +162,7 @@ def control_tab(thisport):
             # new column 4
             [
                 sg.Text("Mode:"), sg.StatusBar("", size=(6,1), key="-"+thisport+" Mode-"), 
-                sg.Combo(["MANUAL", "FBWA", "GUIDED", "RTL", "AUTO", "CRUISE", "TAKEOFF"], default_value="GUIDED", size=(10,1), key="-"+thisport+" ModeCombo-"), 
+                sg.Combo(mode_list, default_value="GUIDED", size=(10,1), key="-"+thisport+" ModeCombo-"), 
                 sg.Button("Set Mode", key="-"+thisport+" SetMode-")
             ],
             # new column 5
@@ -186,31 +189,31 @@ def control_tab(thisport):
             ],
             # new column 9
             [
-                sg.Text("CH1:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH1-"),
-                sg.Text("CH2:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH2-"),
-                sg.Text("CH3:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH3-"),
-                sg.Text("CH4:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH4-")
+                sg.Text("CH1:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH1-"),
+                sg.Text("CH2:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH2-"),
+                sg.Text("CH3:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH3-"),
+                sg.Text("CH4:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH4-")
             ],
             # new column 10
             [
-                sg.Text("CH5:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH5-"),
-                sg.Text("CH6:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH6-"),
-                sg.Text("CH7:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH7-"),
-                sg.Text("CH8:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" CH8-")
+                sg.Text("CH5:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH5-"),
+                sg.Text("CH6:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH6-"),
+                sg.Text("CH7:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH7-"),
+                sg.Text("CH8:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" CH8-")
             ],
             # new column 11
             [
-                sg.Text("Out1:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT1-"),
-                sg.Text("Out2:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT2-"),
-                sg.Text("Out3:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT3-"),
-                sg.Text("Out4:"), sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT4-")
+                sg.Text("Out1:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT1-"),
+                sg.Text("Out2:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT2-"),
+                sg.Text("Out3:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT3-"),
+                sg.Text("Out4:"), sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT4-")
             ],
             # new column 12
             [
-                sg.Text("Out5:"),sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT5-"),
-                sg.Text("Out6:"),sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT6-"),
-                sg.Text("Out7:"),sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT7-"),
-                sg.Text("Out8:"),sg.ProgressBar(1900, size=(6,20), key="-"+thisport+" OUT8-"),
+                sg.Text("Out5:"),sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT5-"),
+                sg.Text("Out6:"),sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT6-"),
+                sg.Text("Out7:"),sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT7-"),
+                sg.Text("Out8:"),sg.ProgressBar(800, size=(6,20), key="-"+thisport+" OUT8-"),
             ],
             # new column 13
             [
@@ -268,25 +271,26 @@ def update_state_tab(thisport, inteval=1, max_num=100):
         window["-"+thisport+" Airspeed-"].update(vehicles[thisport].airspeed)
         # layout_l column 8
         # layout_l column 9
-        window["-"+thisport+" CH1-"].update(current_count=vehicles[thisport].channels["1"])
-        window["-"+thisport+" CH2-"].update(current_count=vehicles[thisport].channels["2"])
-        window["-"+thisport+" CH3-"].update(current_count=vehicles[thisport].channels["3"])
-        window["-"+thisport+" CH4-"].update(current_count=vehicles[thisport].channels["4"])
+        
+        window["-"+thisport+" CH1-"].update(current_count=vehicles[thisport].channels["1"]-1100)
+        window["-"+thisport+" CH2-"].update(current_count=vehicles[thisport].channels["2"]-1100)
+        window["-"+thisport+" CH3-"].update(current_count=vehicles[thisport].channels["3"]-1100)
+        window["-"+thisport+" CH4-"].update(current_count=vehicles[thisport].channels["4"]-1100)
         # layout_l column 10
-        window["-"+thisport+" CH5-"].update(current_count=vehicles[thisport].channels["5"])
-        window["-"+thisport+" CH6-"].update(current_count=vehicles[thisport].channels["6"])
-        window["-"+thisport+" CH7-"].update(current_count=vehicles[thisport].channels["7"])
-        window["-"+thisport+" CH8-"].update(current_count=vehicles[thisport].channels["8"])
+        window["-"+thisport+" CH5-"].update(current_count=vehicles[thisport].channels["5"]-1100)
+        window["-"+thisport+" CH6-"].update(current_count=vehicles[thisport].channels["6"]-1100)
+        window["-"+thisport+" CH7-"].update(current_count=vehicles[thisport].channels["7"]-1100)
+        window["-"+thisport+" CH8-"].update(current_count=vehicles[thisport].channels["8"]-1100)
         # layout_l column 11
-        window["-"+thisport+" OUT1-"].update(current_count=vehicles[thisport].servos.servo_raw["1"])
-        window["-"+thisport+" OUT2-"].update(current_count=vehicles[thisport].servos.servo_raw["2"])
-        window["-"+thisport+" OUT3-"].update(current_count=vehicles[thisport].servos.servo_raw["3"])
-        window["-"+thisport+" OUT4-"].update(current_count=vehicles[thisport].servos.servo_raw["4"])
+        window["-"+thisport+" OUT1-"].update(current_count=vehicles[thisport].servos.servo_raw["1"]-1100)
+        window["-"+thisport+" OUT2-"].update(current_count=vehicles[thisport].servos.servo_raw["2"]-1100)
+        window["-"+thisport+" OUT3-"].update(current_count=vehicles[thisport].servos.servo_raw["3"]-1100)
+        window["-"+thisport+" OUT4-"].update(current_count=vehicles[thisport].servos.servo_raw["4"]-1100)
         # layout_l column 12
-        window["-"+thisport+" OUT5-"].update(current_count=vehicles[thisport].servos.servo_raw["5"])
-        window["-"+thisport+" OUT6-"].update(current_count=vehicles[thisport].servos.servo_raw["6"])
-        window["-"+thisport+" OUT7-"].update(current_count=vehicles[thisport].servos.servo_raw["7"])
-        window["-"+thisport+" OUT8-"].update(current_count=vehicles[thisport].servos.servo_raw["8"])
+        window["-"+thisport+" OUT5-"].update(current_count=vehicles[thisport].servos.servo_raw["5"]-1100)
+        window["-"+thisport+" OUT6-"].update(current_count=vehicles[thisport].servos.servo_raw["6"]-1100)
+        window["-"+thisport+" OUT7-"].update(current_count=vehicles[thisport].servos.servo_raw["7"]-1100)
+        window["-"+thisport+" OUT8-"].update(current_count=vehicles[thisport].servos.servo_raw["8"]-1100)
         # update vehicle location dictionary
         this_x, this_y, this_z = get_grid_location(origin_point, vehicles[thisport].location.global_relative_frame)
         location_x[thisport].append(this_x)
@@ -418,7 +422,7 @@ if __name__ == "__main__":
         # print(event, values)
         
         # Event: Close button pushed.
-        if event == sg.WIN_CLOSED or event == "Exit":
+        if event == sg.WINDOW_CLOSE_ATTEMPTED_EVENT or event == "Exit":
             ch = sg.popup_ok_cancel("确定断开所有连接并退出吗？", title="Confirm Exit?", keep_on_top=True)
             if ch == "OK":
                 logger.info("Control panel closed.")
@@ -687,38 +691,80 @@ if __name__ == "__main__":
                 vehicles[port].armed = False
                 logger.info(port+" attempt disarm.")
             window["-Status-"].update("Global control disarm.")
+        
+        # Event: Execute landing sequence
+        if event == "-GlobalControl LANDSEQ-":
+            for port in vehicles_port:
+                cmds = vehicles[port].commands
+                cmds.clear() # clear old waypoint commands
+                cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_LAND_START, 0, 0, 0, 0, 0, 0, 39.3654715, 115.916217, 50))
+                cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3654632, 115.9154123, 50))
+                cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3669054, 115.9153989, 30))
+                cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680635, 115.9154069, 15))
+                cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_LAND, 0, 0, 0, 0, 0, 0, 39.3691086, 115.9154123, 0))
+                cmds.upload()
+                vehicles[port].commands.next = 0
+                vehicles[port].mode = VehicleMode("AUTO")
 
+        # Event: Global control TAKEOFF mode
+        if event == "-GlobalControl TAKEOFF-":
+            for port in vehicles_port:
+                vehicles[port].mode = VehicleMode("TAKEOFF")
+                logger.info(port+" set to TAKEOFF mode.")
+            window["-Status-"].update("Global control set to TAKEOFF mode.")
+
+        # Event: Global control FBWA mode
+        if event == "-GlobalControl FBWA-":
+            for port in vehicles_port:
+                vehicles[port].mode = VehicleMode("FBWA")
+                logger.info(port+" set to FBWA mode.")
+            window["-Status-"].update("Global control set to FBWA mode.")
+
+        # Event: Global control GUIDED mode
         if event == "-GlobalControl GUIDED-":
             for port in vehicles_port:
                 vehicles[port].mode = VehicleMode("GUIDED")
                 logger.info(port+" set to GUIDED mode.")
             window["-Status-"].update("Global control set to GUIDED mode.")
         
-        if event == "-GlobalControl FBWA-":
+        # Event: Global control RTL mode
+        if event == "-GlobalControl RTL-":
             for port in vehicles_port:
-                vehicles[port].mode = VehicleMode("FBWA")
-                logger.info(port+" set to FBWA mode.")
-            window["-Status-"].update("Global control set to FBWA mode.")
+                vehicles[port].mode = VehicleMode("RTL")
+                logger.info(port+" set to RTL mode.")
+            window["-Status-"].update("Global control set to TAKEOFF mode.")
         
+        # Event: Global control MANUAL mode
+        if event == "-GlobalControl MANUAL-":
+            for port in vehicles_port:
+                vehicles[port].mode = VehicleMode("MANUAL")
+                logger.info(port+" set to MANUAL mode.")
+            window["-Status-"].update("Global control set to MANUAL mode.")
+        
+        # Event: Global control AUTO mode
         if event == "-GlobalControl AUTO-":
             for port in vehicles_port:
                 vehicles[port].mode = VehicleMode("AUTO")
                 logger.info(port+" set to AUTO mode.")
             window["-Status-"].update("Global control set to AUTO mode.")
 
-        if event == "-GlobalControl TAKEOFF-":
+        # Event: Global control QLOITER mode
+        if event == "-GlobalControl QLOITER-":
             for port in vehicles_port:
-                vehicles[port].mode = VehicleMode("TAKEOFF")
-                logger.info(port+" set to TAKEOFF mode.")
-            window["-Status-"].update("Global control set to TAKEOFF mode.")
+                vehicles[port].mode = VehicleMode("QLOITER")
+                logger.info(port+" set to QLOITER mode.")
+            window["-Status-"].update("Global control set to QLOITER mode.")
         
-        if event == "-GlobalControl RTL-":
+        # Event: Global control QLAND mode
+        if event == "-GlobalControl QLOITER-":
             for port in vehicles_port:
-                vehicles[port].mode = VehicleMode("RTL")
-                logger.info(port+" set to RTL mode.")
-            window["-Status-"].update("Global control set to TAKEOFF mode.")
+                vehicles[port].mode = VehicleMode("QLOITER")
+                logger.info(port+" set to QLOITER mode.")
+            window["-Status-"].update("Global control set to QLOITER mode.")
 
+        # Event: Start Mission 1 button pressed
         if event == "-Start Mission 1-":
+            window["-Start Mission 1-"].metadata = True
             for port in vehicles_port:
                 cmds = vehicles[port].commands
                 cmds.clear()
@@ -729,90 +775,11 @@ if __name__ == "__main__":
                 cmds.upload()
                 vehicles[port].commands.next = 0
                 vehicles[port].mode = VehicleMode("AUTO")
+
+        # Event: Abort Mission 1 button pressed
         # ------------------------------------------------------------------
         # Event: Version button pressed.
         if event == 'Version':
             sg.popup_scrolled(sg.get_versions(), non_blocking=True)
     
     window.close()
-
-"""
-    if sitl_debug == True:
-        # SITL debugging, use tcp connection
-        logger.info("SITL debugging, use TCP connection.")
-        sitl_device = "tcp:127.0.0.1:5762"
-    else:
-        # Check serial ports
-        ports_list = list(serial.tools.list_ports.comports())
-        if len(ports_list) <= 0:
-            logger.info("No serial ports.")
-            sys.exit()
-        else:
-            print("Available serial ports:")
-            for comport in ports_list:
-                print(list(comport)[0], list(comport)[1])
-                if comport.manufacturer == "Silicon Laboratories" and comport.serial_number == 1001: # 915MHz radio telementry serial number = 1001
-                    telem_device = comport.device
-    
-    # Connect vehicle
-    if sitl_debug == True:
-        vehicle = connect(sitl_device, wait_ready=True)
-    else:
-        # Retry radio telemetry connection, need to modification later
-        max_retry = 10
-        for retry_num in range(1,max_retry):
-            try:
-                vehicle = connect(telem_device, baud=57600, wait_ready=True)
-            except:
-                logger.info("Vehicle failed to connected, try %s time." % retry_num)
-                if retry_num == max_retry - 1:
-                    sys.exit()
-            else:    
-                print("Vehicle connected.")
-                break
-
-    # Mission config
-    home_location = LocationGlobalRelative(39.3690256, 115.9155303, 0) # vehicle's home location = vehicle's current location
-    # home_location = LocationGlobalRelative(39.3699914, 115.915406, 0) # vehicle's home location = fixed location
-    takeoff_alt = 40
-    land_alt = 5
-    waypoints = [LocationGlobalRelative(39.3698986, 115.9155303, 50), 
-                 LocationGlobalRelative(39.3690256, 115.9155303, 50), 
-                 LocationGlobalRelative(39.3682086, 115.9155357, 50)]
-    waypoint_next = 0
-    waypoint_radius = 100
-    max_loop = 1
-    stop_flag = False
-    flight_mission = threading.Thread(target=mission_thread, args=(1,)) # create flight mission thread
-
-    # Matplolib configuration initialize
-    fig = plt.figure()
-    ax = plt.axes(projection="3d")
-    Vehicle_Location = namedtuple("Vehicle_Location", ["x", "y", "z"])
-    vehicle_x, vehicle_y, vehicle_z = get_grid_location(home_location, vehicle.location.global_relative_frame)
-    vehicle_location = Vehicle_Location([vehicle_x], [vehicle_y], [vehicle_z])
-    
-    # Waiting for takeoff complete, in guided mode
-    while True:
-        if vehicle.location.global_relative_frame.alt > takeoff_alt and vehicle.mode.name == "GUIDED":
-            loop_count = 0
-            break
-        print("Waiting for vehicle takeoff.")
-        time.sleep(2)
-
-    # start flight mission thread
-    flight_mission.start()
-
-    # Matplotlib realtime draw
-    ani = animation.FuncAnimation(fig, update_animate)
-    plt.tight_layout()
-    plt.show()
-
-    
-    stop_flag = True
-    run_time = time.time() - start_time
-    logger.info("Stop mission thread at: %s" % run_time)
-
-    # close vehicle object
-    vehicle.close()
-"""
