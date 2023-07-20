@@ -321,41 +321,9 @@ def update_animate():
 
 def mission_thread(port, inteval):
     # Flight Mission loop
-    while True:
-        # global variables announcement
-        global run_time, waypoint_next, loop_count, vehicle, stop_flag
-
-        # Log information
-        run_time = time.time() - start_time
-        os.system("cls")
-        logger.info("--------New Control Loop--------")
-        logger.info("Program run time: %s" % run_time)
-        logger.info(vehicle.battery)
-        logger.info(vehicle.mode)
-        logger.info(vehicle.location.global_relative_frame)
-        logger.info(vehicle.gps_0)
-        logger.info("Next waypoint: %s" % waypoint_next)
-        logger.info("Loop count: %s" % loop_count)
-
-        # Flight mission
-        if get_distance_metres(vehicle.location.global_relative_frame, waypoints[waypoint_next]) <= waypoint_radius and vehicle.mode.name == "GUIDED":
-            if waypoint_next == len(waypoints) - 1:
-                waypoint_next = 0
-                loop_count = loop_count + 1
-            else:
-                waypoint_next = waypoint_next + 1
-            vehicle.simple_goto(waypoints[waypoint_next])
-        elif get_distance_metres(vehicle.location.global_relative_frame, waypoints[waypoint_next]) > waypoint_radius and vehicle.mode.name == "GUIDED":
-            vehicle.simple_goto(waypoints[waypoint_next])
-
-        # Exit mission judgement
-        if vehicle.mode.name != "GUIDED" or vehicle.location.global_relative_frame.alt < land_alt or stop_flag == True:
-            logger.info("Exit guided mode, mission aborted.")
-            break # Exit mission_thread() function
-        if loop_count > max_loop:
-            logger.info("Mode change to auto, vehicle return to land.")
-            vehicle.mode = VehicleMode("AUTO")
-
+    while window["-Start Mission 2-"].metadata == True:
+        # logger.info(port+": "+vehicles[port].location.global_relative_frame)
+        logger.info(port+": ")
         time.sleep(inteval)
 
 if __name__ == "__main__":
@@ -393,6 +361,7 @@ if __name__ == "__main__":
     location_x = {} # Vehicle's x location dictionary 
     location_y = {} # Vehicle's y location dictionary
     vehicles_update_threads = {} # update_state_tab() threads
+    vehicles_mission_threads = {} # mission_thread() threads
     vehicles_port = []
     update_interval = 0.5
     origin_point = LocationGlobalRelative(39.3696311, 115.9153962, 0)
@@ -403,6 +372,8 @@ if __name__ == "__main__":
 
     window["-Tab Group-"].add_tab(sg.Tab("blank_port", control_tab("blank_port"), key="-Blank Tab-"))
     window["-Blank Tab-"].Update(visible=False)
+    window["-Start Mission 1-"].metadata = False
+    window["-Start Mission 2-"].metadata = False
     # Initialize 
     canvas_elem = window['-CANVAS-']
     canvas = canvas_elem.TKCanvas
@@ -510,6 +481,7 @@ if __name__ == "__main__":
                         window["-"+port+" Tab-"].select()
                     else:
                         window["-Tab Group-"].add_tab(sg.Tab(port, control_tab(port), key="-"+port+" Tab-"))
+                        window["-"+port+" DisableGPS-"].update(disabled=True)
                     
                     logger.info(port+" connected.")
                     vehicles_update_threads[port] = threading.Thread(target=update_state_tab, args=(port, update_interval,), daemon=True)
@@ -609,6 +581,7 @@ if __name__ == "__main__":
             logger.info(target_port+" target airspeed "+str(target_airspeed)+"m/s.")
         
         # Event: Disable GPS Checkbox. USE SIM_GPS_DISABLE parameter.
+        # NOTEthat NOT woring in Cube Orange hardware 
         if event.find("DisableGPS") >= 0:
             for port in vehicles_port:
                 if event.find(port) >= 0:
@@ -762,9 +735,10 @@ if __name__ == "__main__":
                 logger.info(port+" set to QLOITER mode.")
             window["-Status-"].update("Global control set to QLOITER mode.")
 
-        # Event: Start Mission 1 button pressed
+        # Event: Start Mission 1 button pressed, all vehicles set to AUTO mode
         if event == "-Start Mission 1-":
-            window["-Start Mission 1-"].metadata = True
+            if window["-Start Mission 1-"].metadata == False:
+                window["-Start Mission 1-"].metadata = True
             for port in vehicles_port:
                 cmds = vehicles[port].commands
                 cmds.clear()
@@ -775,8 +749,33 @@ if __name__ == "__main__":
                 cmds.upload()
                 vehicles[port].commands.next = 0
                 vehicles[port].mode = VehicleMode("AUTO")
+            logger.info("Start mission 1.")
+            window["-Status-"].update("Start mission 1.")
 
-        # Event: Abort Mission 1 button pressed
+        # Event: Abort Mission 1 button pressed, all vehicles set to GUIDED mode
+        if event == "-Abort Mission 1-":
+            if window['-Start Mission 1-'].metadata == True:
+                for port in vehicles_port:
+                    vehicles[port].mode = VehicleMode("GUIDED")
+            window['-Start Mission 1-'].metadata = False
+            logger.info("Abort Mission 1.")
+            window["-Status-"].update("Abort Mission 1.")
+
+        # Event: Start Mission 2 button pressed, run mission_thread()
+        if event == "-Start Mission 2-":
+            if window["-Start Mission 2-"].metadata == False:
+                window["-Start Mission 2-"].metadata = True
+            for port in vehicles_port:
+                vehicles_mission_threads[port] = threading.Thread(target=mission_thread, args=(port, update_interval,), daemon=True)
+                vehicles_mission_threads[port].start()
+            logger.info("Start Mission 2.")
+            window["-Status-"].update("Start Mission 2.")
+        
+        # Event: Abort Mission 2 button
+        if event == "-Abort Mission 2-":
+            if window["-Start Mission 2-"].metadata == True:
+                window["-Start Mission 2-"].metadata = False
+            
         # ------------------------------------------------------------------
         # Event: Version button pressed.
         if event == 'Version':
