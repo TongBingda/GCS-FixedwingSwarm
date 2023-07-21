@@ -1,0 +1,1 @@
+ArduPlane.exe --speedup 1 --instance 0 --home 39.3699914,115.9155303,0,180 --model plane --disable-fgview --uartA tcp:0
