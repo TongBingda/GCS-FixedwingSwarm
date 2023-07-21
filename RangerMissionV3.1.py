@@ -2,7 +2,8 @@
 FMS Ranger 1800mm Mission, Test For Automatic Takeoff, Landing And Waypoint Mission
 2023.06.28 Start building UAV ground control stations with pysimplegui 
 and abandon the solution of directly using matplotlib to plot UAV trajectory
-Version 20230628
+2023.07.21 Code that accomplishes two different task functions
+Version 20230721
 Created by tongbingda
 """
 from dronekit import connect, VehicleMode, LocationGlobal, LocationGlobalRelative, Command
@@ -372,7 +373,7 @@ def mission_thread(port, inteval):
                 window["-Status-"].update("Exceeding the maximum wait time, vehicle switches to AUTO mode.")
                 run_pyttsx3(port+"切换为自动模式。")
             time.sleep(inteval)
-            
+
     window["-Start Mission 2-"].metadata = False # exit Mission 2
     
 
