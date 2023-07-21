@@ -324,7 +324,7 @@ def update_animate():
 def mission_thread(port, inteval):
     # Flight Mission loop
     # STEP 1. Wait for the aircraft to take off in QLOITER mode to the specified altitude
-    while window["-Start Mission 2-"].metadata == True: #and vehicles[port].mode.name == "QLOITER":
+    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "QLOITER":
         takeoff_alt = 25
         if vehicles[port].location.global_relative_frame.alt >= takeoff_alt:
             window["-Status-"].update("Takeoff complete, GUIDED to waypoint.")
