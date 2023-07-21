@@ -85,6 +85,7 @@ def main_control_panel():
             sg.Button("Arm", key="-GlobalControl ARM-"),
             sg.Button("Disarm", key="-GlobalControl DISARM-"),
             sg.Button("Land Sequence", key="-GlobalControl LANDSEQ-"),
+            sg.Button("Emergency Stop", key="-GlobalControl EMERGENCYSTOP-")
         ],
         # column 2
         [
@@ -730,6 +731,11 @@ if __name__ == "__main__":
                 cmds.upload()
                 vehicles[port].commands.next = 0
                 vehicles[port].mode = VehicleMode("AUTO")
+        
+        # Event: Motor Emergency Stop, USE Carefully
+        if event == "-GlobalControl EMERGENCYSTOP-":
+            for port in vehicles_port:
+                vehicles[port].channels.overrides['7'] = 1900
 
         # Event: Global control TAKEOFF mode
         if event == "-GlobalControl TAKEOFF-":
