@@ -126,7 +126,7 @@ def main_control_panel():
         [sg.Text("         固定翼无人机集群地面站           ", font="黑体 24"), sg.Text("Port:"), sg.Input(default_text=5762, size=(4,1), key="-TCP Port-", enable_events=True), sg.Checkbox("SITL Simulation", enable_events=True, key="-SITL Debug-"), sg.Exit()],
         [sg.Column(layout_l, vertical_alignment="top"), sg.Column(layout_r)],
         # [sg.Column(layout_l, justification="left", element_justification="left", vertical_alignment="top"), sg.Column(layout_r, justification="right")],
-        [sg.Button('Version'), sg.StatusBar(text="Information output here.", size=(50,1), key="-Status-")]
+        [sg.Button('Version'), sg.Button("Test"), sg.StatusBar(text="Information output here.", size=(50,1), key="-Status-")]
     ]
     
     window = sg.Window("UAV Swarm Control Panel", layout, finalize=True, keep_on_top=False, enable_close_attempted_event=True)
@@ -316,40 +316,65 @@ def update_animate():
     for thisport in vehicles_port:
         if window["-"+thisport+" LivePlot-"].get() == True:
             ax.plot(location_x[thisport], location_y[thisport], color=vehicles_team[thisport], linewidth=2)
-            ax.scatter(location_x[thisport][-1], location_y[thisport][-1], color=vehicles_team[thisport], s=80,marker="$"+str(vehicles_port.index(port)+1)+"$")
+            # todo: ax.scatter will block old plot
+            # ax.scatter(location_x[thisport][-1], location_y[thisport][-1], color=vehicles_team[thisport], s=80,marker="$"+str(vehicles_port.index(thisport)+1)+"$")
     fig_agg.draw()
 
 def mission_thread(port, inteval):
     # Flight Mission loop
-    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "QLOITER":
-        # logger.info(port+": "+vehicles[port].location.global_relative_frame)
-        if vehicles[port].location.global_relative_frame.alt >= 25:
+    # STEP 1. Wait for the aircraft to take off in QLOITER mode to the specified altitude
+    while window["-Start Mission 2-"].metadata == True: #and vehicles[port].mode.name == "QLOITER":
+        takeoff_alt = 25
+        if vehicles[port].location.global_relative_frame.alt >= takeoff_alt:
             window["-Status-"].update("Takeoff complete, GUIDED to waypoint.")
-            rally_point = LocationGlobalRelative(39.3679571, 115.9155552, 25)
+            # Setting the altitude of the rally point
+            rally_alt = 40 + vehicles[port].parameters["SYSID_THISMAV"] * 5 # SYSID_THISMAV: float type 
+            # Setting up drone staging point locations
+            rally_point = LocationGlobalRelative(39.3679571, 115.9155552, rally_alt)
             vehicles[port].mode = VehicleMode("GUIDED")
             vehicles[port].simple_goto(rally_point)
-            # tongbingda 
-            # create the MAV_CMD_DO_VTOL_TRANSITION command using command_long_encode()
-            # msg = vehicles[port].message_factory.command_long_encode(
-            #     0, 0,    # target system, target component
-            #     mavutil.mavlink.MAV_CMD_DO_VTOL_TRANSITION, #command
-            #     0, #confirmation
-            #     4,    # param 1, plane
-            #     0,    # param 2, normal transition
-            #     0, 0, 0, 0, 0) # param 3 ~ 7 not used
-            # # send command to vehicle
-            # vehicles[port].send_mavlink(msg)
-            rally_point = LocationGlobalRelative(39.3679571, 115.9155552, 50)
-            vehicles[port].simple_goto(rally_point)
-            run_pyttsx3("前往集结点。")
-            time.sleep(20)
-            vehicles[port].mode = VehicleMode("AUTO")
-            run_pyttsx3("切换为自动模式。")
-            break
+            logger.info(port+" proceed to rally point.")
+            window["-Status-"].update(port+" proceed to rally point.")
+            run_pyttsx3(port+"前往集结点。") 
+            break # Exit the current while loop
         else:
             window["-Status-"].update("Waiting for takeoff.")
-            run_pyttsx3("等待起飞。")
+            run_pyttsx3(port+"等待起飞。")
             time.sleep(inteval)
+    # Step 2. Wait for vehicle reach the rally point
+    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "GUIDED":
+        reach_distance = 100
+        if get_distance_metres(vehicles[port].location.global_relative_frame, rally_point) <= reach_distance:
+            vehicles_reached_rally_point[port] = True
+            hover_time_start = time.time()
+            logger.info(port+" has reached rally point.")
+            window["-Status-"].update(port+" has reached rally point.")
+            run_pyttsx3(port+"已到达集结点。")
+            break
+        else:
+            time.sleep(inteval)
+    # Step 3. Set vehicle to AUTO mode.
+    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "GUIDED":
+        if all(value == True for value in vehicles_reached_rally_point.values()) == True:
+            wait_time = 5 + vehicles[port].parameters["SYSID_THISMAV"] * 3
+            time.sleep(wait_time)
+            vehicles[port].mode = VehicleMode("AUTO")
+            logger.info("All vehicles has reached rally point, vehicle is set to AUTO mode.")
+            window["-Status-"].update("All vehicles has reached rally point, vehicle is set to AUTO mode.")
+            run_pyttsx3(port+"切换为自动模式。")
+            break
+        else:
+            # If there is no guarantee that all aircraft will arrive at the assembly point after a certain period of time.
+            # The mode of vehicle will be forced to be set to auto.
+            if time.time() - hover_time_start > 60: 
+                vehicles[port].mode = VehicleMode("AUTO")
+                logger.info("Exceeding the maximum wait time, vehicle switches to AUTO mode.")
+                window["-Status-"].update("Exceeding the maximum wait time, vehicle switches to AUTO mode.")
+                run_pyttsx3(port+"切换为自动模式。")
+            time.sleep(inteval)
+            
+    window["-Start Mission 2-"].metadata = False # exit Mission 2
+    
 
 if __name__ == "__main__":
     # Simulation flags
@@ -386,10 +411,9 @@ if __name__ == "__main__":
     location_x = {} # Vehicle's x location dictionary 
     location_y = {} # Vehicle's y location dictionary
     vehicles_update_threads = {} # update_state_tab() threads
-    vehicles_mission_threads = {} # mission_thread() threads
     vehicles_port = []
     update_interval = 0.5
-    origin_point = LocationGlobalRelative(39.3696311, 115.9153962, 0)
+    origin_point = LocationGlobalRelative(39.3696311, 115.9153962, 0) # origin point in matplotlib
 
     # Show control window panel
     logger.info("Start control panel.")
@@ -506,6 +530,7 @@ if __name__ == "__main__":
                         window["-"+port+" Tab-"].select()
                     else:
                         window["-Tab Group-"].add_tab(sg.Tab(port, control_tab(port), key="-"+port+" Tab-"))
+                        # IN real hardware autopilot, the DisableGPS checkbox cannot be used.
                         window["-"+port+" DisableGPS-"].update(disabled=True)
                     
                     logger.info(port+" connected.")
@@ -651,6 +676,7 @@ if __name__ == "__main__":
 
         # Event: Reboot button pressed.
         # NOTICE: NOT Working in SITL Simulation, USE Carefully!!!
+        # NOTICE: Working in real hardware autopilot, USE CAREFULLY!!! 
         if event.find("Reboot") >= 0:
             for port in vehicles_port:
                 if event.find(port) >= 0:
@@ -788,22 +814,44 @@ if __name__ == "__main__":
 
         # Event: Start Mission 2 button pressed, run mission_thread()
         if event == "-Start Mission 2-":
+            vehicles_mission_threads = {} # mission_thread() threads dictionary
+            vehicles_reached_rally_point = {} # vehicle have reached the rally point dictionary
             if window["-Start Mission 2-"].metadata == False:
                 window["-Start Mission 2-"].metadata = True
-            for port in vehicles_port:
-                vehicles_mission_threads[port] = threading.Thread(target=mission_thread, args=(port, update_interval,), daemon=True)
-                vehicles_mission_threads[port].start()
-            logger.info("Start Mission 2.")
-            window["-Status-"].update("Start Mission 2.")
+                for port in vehicles_port:
+                    vehicles_mission_threads[port] = threading.Thread(target=mission_thread, args=(port, update_interval,), daemon=True)
+                    vehicles_reached_rally_point[port] = False
+                    vehicles_mission_threads[port].start()
+                logger.info("Start Mission 2.")
+                window["-Status-"].update("Start Mission 2.")
+            else:
+                logger.info("Mission 2 has already in progress.")
+                window["-Status-"].update("Mission 2 has already in progress.")
+                run_pyttsx3("任务2正在执行中。")
         
-        # Event: Abort Mission 2 button
+        # Event: Abort Mission 2 button, wait for all vehicles_mission_threads stopped
         if event == "-Abort Mission 2-":
             if window["-Start Mission 2-"].metadata == True:
                 window["-Start Mission 2-"].metadata = False
-            
+                for port in vehicles_port:
+                    vehicles_mission_threads[port].join()
+                logger.info("Abort Mission 2.")
+                window["-Status-"].update("Abort Mission 2.")
+            else:
+                logger.info("Mission 2 has been completed.")
+                window["-Status-"].update("Mission 2 has been completed.")
+                run_pyttsx3("任务2已完成。")
         # ------------------------------------------------------------------
         # Event: Version button pressed.
         if event == 'Version':
             sg.popup_scrolled(sg.get_versions(), non_blocking=True)
+        
+        # Event: Test button pressed.
+        if event == "Test":
+            port = "tcp:127.0.0.1:5762"
+            try:
+                print(vehicles[port].parameters["SIM_GPS"])
+            except:
+                window["-Status-"].update("key error")
     
     window.close()
