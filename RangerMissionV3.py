@@ -321,10 +321,35 @@ def update_animate():
 
 def mission_thread(port, inteval):
     # Flight Mission loop
-    while window["-Start Mission 2-"].metadata == True:
+    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "QLOITER":
         # logger.info(port+": "+vehicles[port].location.global_relative_frame)
-        logger.info(port+": ")
-        time.sleep(inteval)
+        if vehicles[port].location.global_relative_frame.alt >= 25:
+            window["-Status-"].update("Takeoff complete, GUIDED to waypoint.")
+            rally_point = LocationGlobalRelative(39.3679571, 115.9155552, 25)
+            vehicles[port].mode = VehicleMode("GUIDED")
+            vehicles[port].simple_goto(rally_point)
+            # tongbingda 
+            # create the MAV_CMD_DO_VTOL_TRANSITION command using command_long_encode()
+            # msg = vehicles[port].message_factory.command_long_encode(
+            #     0, 0,    # target system, target component
+            #     mavutil.mavlink.MAV_CMD_DO_VTOL_TRANSITION, #command
+            #     0, #confirmation
+            #     4,    # param 1, plane
+            #     0,    # param 2, normal transition
+            #     0, 0, 0, 0, 0) # param 3 ~ 7 not used
+            # # send command to vehicle
+            # vehicles[port].send_mavlink(msg)
+            rally_point = LocationGlobalRelative(39.3679571, 115.9155552, 50)
+            vehicles[port].simple_goto(rally_point)
+            run_pyttsx3("前往集结点。")
+            time.sleep(20)
+            vehicles[port].mode = VehicleMode("AUTO")
+            run_pyttsx3("切换为自动模式。")
+            break
+        else:
+            window["-Status-"].update("Waiting for takeoff.")
+            run_pyttsx3("等待起飞。")
+            time.sleep(inteval)
 
 if __name__ == "__main__":
     # Simulation flags
