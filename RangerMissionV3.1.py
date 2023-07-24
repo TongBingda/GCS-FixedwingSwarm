@@ -330,7 +330,7 @@ def mission_thread(port, inteval):
         if vehicles[port].location.global_relative_frame.alt >= takeoff_alt:
             window["-Status-"].update("Takeoff complete, GUIDED to waypoint.")
             # Setting the altitude of the rally point
-            rally_alt = 40 + vehicles[port].parameters["SYSID_THISMAV"] * 5 # SYSID_THISMAV: float type 
+            rally_alt = 40 + vehicles[port].parameters["SYSID_THISMAV"] * 10 # SYSID_THISMAV: float type 
             # Setting up drone staging point locations
             rally_point = LocationGlobalRelative(39.3679571, 115.9155552, rally_alt)
             vehicles[port].mode = VehicleMode("GUIDED")
@@ -358,7 +358,7 @@ def mission_thread(port, inteval):
     # Step 3. Set vehicle to AUTO mode.
     while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "GUIDED":
         if all(value == True for value in vehicles_reached_rally_point.values()) == True:
-            wait_time = 5 + vehicles[port].parameters["SYSID_THISMAV"] * 3
+            wait_time = 2 + vehicles[port].parameters["SYSID_THISMAV"] * 5
             time.sleep(wait_time)
             vehicles[port].mode = VehicleMode("AUTO")
             logger.info("All vehicles has reached rally point, vehicle is set to AUTO mode.")
@@ -502,7 +502,8 @@ if __name__ == "__main__":
                 if values["-SITL Debug-"] == False: # USE serial port
                     # Use device ports to differentiate vehicles
                     try:
-                        vehicles[port] = connect(port, baud=57600, wait_ready=True)
+                        # vehicles[port] = connect(port, baud=57600, wait_ready=True)
+                        vehicles[port] = connect(port, baud=57600, wait_ready=False)
                     except:
                         # if connection failed
                         logger.warning(port+" connection failed.")
@@ -540,7 +541,8 @@ if __name__ == "__main__":
                     vehicles_update_threads[port].start()
                 else: # USE TCP port
                     try:
-                        vehicles[port] = connect(port, wait_ready=True)
+                        # vehicles[port] = connect(port, wait_ready=True)
+                        vehicles[port] = connect(port, wait_ready=False)
                     except:
                         # if connection failed
                         logger.warning(port+" connection failed.")
