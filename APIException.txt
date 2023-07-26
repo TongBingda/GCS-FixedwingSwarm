@@ -1,0 +1,9 @@
+ERROR:dronekit:Exception in message handler for HEARTBEAT
+Traceback (most recent call last):
+  File "C:\Users\Tong Bingda\AppData\Local\Programs\Python\Python38\lib\site-packages\dronekit-2.9.2-py3.8.egg\dronekit\__init__.py", line 1599, in 
+notify_message_listeners
+    fn(self, name, msg)
+  File "C:\Users\Tong Bingda\AppData\Local\Programs\Python\Python38\lib\site-packages\dronekit-2.9.2-py3.8.egg\dronekit\__init__.py", line 1291, in 
+listener
+    raise APIException("mode (%s, %s) not available on mavlink definition" % (m.custom_mode, m.base_mode))
+dronekit.APIException: mode (0, 4) not available on mavlink definition

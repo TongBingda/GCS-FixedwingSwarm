@@ -165,7 +165,8 @@ def control_tab(thisport):
             [
                 sg.Text("Mode:"), sg.StatusBar("", size=(6,1), key="-"+thisport+" Mode-"), 
                 sg.Combo(mode_list, default_value="GUIDED", size=(10,1), key="-"+thisport+" ModeCombo-"), 
-                sg.Button("Set Mode", key="-"+thisport+" SetMode-")
+                sg.Button("Set Mode", key="-"+thisport+" SetMode-"),
+                sg.Checkbox("Voice Warning", default=True, key="-"+thisport+" VoiceWarning-")
             ],
             # new column 5
             [
@@ -232,6 +233,8 @@ def run_pyttsx3(str):
     engine.runAndWait()
 
 def update_state_tab(thisport, inteval=1, max_num=100):
+    speed_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 速度警告。",), daemon=True)
+    altitude_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 高度警告。",), daemon=True)
     while thisport in vehicles_port:
         # layout_l column 1
         window["-"+thisport+" Device-"].update(thisport) # The device name update code is temporarily placed here
@@ -262,6 +265,14 @@ def update_state_tab(thisport, inteval=1, max_num=100):
         window["-"+thisport+" SatNum-"].update(vehicles[thisport].gps_0.satellites_visible)
         # layout_l column 4
         window["-"+thisport+" Mode-"].update(vehicles[thisport].mode.name)
+        if window["-"+thisport+" VoiceWarning-"].get() == True and vehicles[thisport].groundspeed < 10:
+            if speed_warning_thread.is_alive() == False:
+                speed_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 速度警告。",), daemon=True)
+                speed_warning_thread.start()
+        if window["-"+thisport+" VoiceWarning-"].get() == True and vehicles[thisport].location.global_relative_frame.alt < 10:
+            if altitude_warning_thread.is_alive() == False:
+                altitude_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 高度警告。",), daemon=True)
+                altitude_warning_thread.start()
         # layout_l column 5
         window["-"+thisport+" Lat-"].update(vehicles[thisport].location.global_relative_frame.lat)
         window["-"+thisport+" Lon-"].update(vehicles[thisport].location.global_relative_frame.lon)
@@ -299,28 +310,71 @@ def update_state_tab(thisport, inteval=1, max_num=100):
         location_y[thisport].append(this_y)
         if len(location_x[thisport]) > max_num:
             location_x[thisport].pop(0)
-            location_y[thisport].pop(0)
-        
-        if window["-"+thisport+" LivePlot-"].get() == True:
-            # call update_animate() function, draw trajectory
-            update_animate()
+            location_y[thisport].pop(0)    
 
         # log vehicle's information
         # logger.info(thisport+": "+vehicles[thisport].location.global_relative_frame)
         time.sleep(inteval)
 
-def update_animate():
-    ax.cla()
-    ax.grid()
-    ax.set_xlabel("X axis(m)")
-    ax.set_ylabel("Y axis(m)")
-    ax.grid("equal")
-    for thisport in vehicles_port:
-        if window["-"+thisport+" LivePlot-"].get() == True:
-            ax.plot(location_x[thisport], location_y[thisport], color=vehicles_team[thisport], linewidth=2)
-            # todo: ax.scatter will block old plot
-            # ax.scatter(location_x[thisport][-1], location_y[thisport][-1], color=vehicles_team[thisport], s=80,marker="$"+str(vehicles_port.index(thisport)+1)+"$")
-    fig_agg.draw()
+def update_animate(inteval):
+    while True:
+        ax.cla()
+        ax.grid()
+        ax.set_xlabel("X axis(m)")
+        ax.set_ylabel("Y axis(m)")
+        ax.grid("equal")
+        for thisport in vehicles_port:
+            if window["-"+thisport+" LivePlot-"].get() == True:
+                ax.plot(location_x[thisport], location_y[thisport], color=vehicles_team[thisport], linewidth=2)
+                # todo: ax.scatter will block old plot
+                # ax.scatter(location_x[thisport][-1], location_y[thisport][-1], color=vehicles_team[thisport], s=80,marker="$"+str(vehicles_port.index(thisport)+1)+"$")
+        fig_agg.draw()
+        time.sleep(inteval)
+
+def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True):
+    try:
+        if sitl_debug == True:
+            vehicles[port] = connect(port, wait_ready=wait_ready)
+        else:
+            vehicles[port] = connect(port, baud=baud, wait_ready=wait_ready)
+
+        # record vehicle team 
+        if window["-Radio Red-"].get() == True:
+            vehicles_team[port] = "red"
+        elif window["-Radio Blue-"].get() == True:
+            vehicles_team[port] = "blue"
+        else:
+            logger.error("Vehicle team set error.")
+            window["-Status-"].update("Vehicle team set error.")
+                    
+        # append vehicle location list
+        location_x[port] = []
+        location_y[port] = []
+
+        # show control tab
+        if "-"+port+" Tab-" in window.AllKeysDict:
+            print("Visible control tab")
+            window["-"+port+" Tab-"].update(visible=True)
+            window["-"+port+" Tab-"].select()
+        else:
+            window["-Tab Group-"].add_tab(sg.Tab(port, control_tab(port), key="-"+port+" Tab-"))
+            # IN real hardware autopilot, the DisableGPS checkbox cannot be used.
+            window["-"+port+" DisableGPS-"].update(disabled=True)
+                    
+        logger.info(port+" connected.")
+        vehicles_update_threads[port] = threading.Thread(target=update_state_tab, args=(port, update_interval,), daemon=True)
+        
+        # append active vehicle list
+        vehicles_port.append(port)
+        # start update thread
+        vehicles_update_threads[port].start()
+
+    except:
+        # if connection failed
+        logger.warning(port+" connection failed.")
+        threading.Thread(target=run_pyttsx3, args=(port+"连接失败。",), daemon=True).start()
+        window["-Status-"].update(port+" connction failed.")
+
 
 def mission_thread(port, inteval):
     # Flight Mission loop
@@ -379,9 +433,6 @@ def mission_thread(port, inteval):
     
 
 if __name__ == "__main__":
-    # Simulation flags
-    sitl_debug = True
-    
     # System and logger config
     start_time = time.time() # Start timer
     os.system("cls") # clear command window
@@ -437,6 +488,7 @@ if __name__ == "__main__":
     ax.grid(visible=True, which="both")
     ax.axis("equal")
     fig_agg = draw_figure(canvas, fig)
+    threading.Thread(target=update_animate, args=(update_interval,), daemon=True).start()
 
     # Event process loop
     while True:
@@ -499,79 +551,7 @@ if __name__ == "__main__":
                 window["-Status-"].update(port + " selected, connecting...")
                 threading.Thread(target=run_pyttsx3, args=("正在连接"+port,), daemon=True).start()
 
-                if values["-SITL Debug-"] == False: # USE serial port
-                    # Use device ports to differentiate vehicles
-                    try:
-                        vehicles[port] = connect(port, baud=57600, wait_ready=True)
-                    except:
-                        # if connection failed
-                        logger.warning(port+" connection failed.")
-                        threading.Thread(target=run_pyttsx3, args=(port+"连接失败。",), daemon=True).start()
-                        window["-Status-"].update(port+" connction failed.")
-                        continue
-
-                    # append active vehicle list
-                    vehicles_port.append(port)
-                    # record vehicle team 
-                    if values["-Radio Red-"] == True:
-                        vehicles_team[port] = "red"
-                    elif values["-Radio Blue-"] == True:
-                        vehicles_team[port] = "blue"
-                    else:
-                        logger.error("Vehicle team set error.")
-                        window["-Status-"].update("Vehicle team set error.")
-                        continue
-                    # append vehicle location list
-                    location_x[port] = []
-                    location_y[port] = []
-
-                    # show control tab
-                    if "-"+port+" Tab-" in window.AllKeysDict:
-                        print("Visible control tab")
-                        window["-"+port+" Tab-"].update(visible=True)
-                        window["-"+port+" Tab-"].select()
-                    else:
-                        window["-Tab Group-"].add_tab(sg.Tab(port, control_tab(port), key="-"+port+" Tab-"))
-                        # IN real hardware autopilot, the DisableGPS checkbox cannot be used.
-                        window["-"+port+" DisableGPS-"].update(disabled=True)
-                    
-                    logger.info(port+" connected.")
-                    vehicles_update_threads[port] = threading.Thread(target=update_state_tab, args=(port, update_interval,), daemon=True)
-                    vehicles_update_threads[port].start()
-                else: # USE TCP port
-                    try:
-                        vehicles[port] = connect(port, wait_ready=True)
-                    except:
-                        # if connection failed
-                        logger.warning(port+" connection failed.")
-                        threading.Thread(target=run_pyttsx3, args=(port+"连接失败。",), daemon=True).start()
-                        window["-Status-"].update(port+" connction failed.")
-                        continue
-
-                    # append active vehicle list
-                    vehicles_port.append(port)
-                    # record vehicle team 
-                    if values["-Radio Red-"] == True:
-                        vehicles_team[port] = "red"
-                    elif values["-Radio Blue-"] == True:
-                        vehicles_team[port] = "blue"
-                    else:
-                        logger.error("Vehicle team set error.")
-                        window["-Status-"].update("Vehicle team set error.")
-                        continue
-                    # append vehicle location list
-                    location_x[port] = []
-                    location_y[port] = []
-
-                    # show control tab
-                    if "-"+port+" Tab-" in window.AllKeysDict:
-                        window["-"+port+" Tab-"].update(visible=True)
-                        window["-"+port+" Tab-"].select()
-                    else:
-                        window["-Tab Group-"].add_tab(sg.Tab(port, control_tab(port), key="-"+port+" Tab-"))
-
-                    vehicles_update_threads[port] = threading.Thread(target=update_state_tab, args=(port, update_interval,), daemon=True)
-                    vehicles_update_threads[port].start()
+                threading.Thread(target=vehicle_connect, args=(port, window["-SITL Debug-"].get(), 115200, True,), daemon=True).start()
         # ------------------------------------------------------------------
         # Event in control tab, must find target_port.
         # Event: Arm/Disarm button.
