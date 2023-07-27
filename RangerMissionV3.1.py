@@ -331,12 +331,12 @@ def update_animate(inteval):
         fig_agg.draw()
         time.sleep(inteval)
 
-def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True):
+def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True, timeout=60):
     try:
         if sitl_debug == True:
             vehicles[port] = connect(port, wait_ready=wait_ready)
         else:
-            vehicles[port] = connect(port, baud=baud, wait_ready=wait_ready)
+            vehicles[port] = connect(port, baud=baud, wait_ready=wait_ready, timeout=timeout)
 
         # record vehicle team 
         if window["-Radio Red-"].get() == True:
@@ -551,7 +551,7 @@ if __name__ == "__main__":
                 window["-Status-"].update(port + " selected, connecting...")
                 threading.Thread(target=run_pyttsx3, args=("正在连接"+port,), daemon=True).start()
 
-                threading.Thread(target=vehicle_connect, args=(port, window["-SITL Debug-"].get(), 115200, True,), daemon=True).start()
+                threading.Thread(target=vehicle_connect, args=(port, window["-SITL Debug-"].get(), 115200, True, 60,), daemon=True).start()
         # ------------------------------------------------------------------
         # Event in control tab, must find target_port.
         # Event: Arm/Disarm button.
