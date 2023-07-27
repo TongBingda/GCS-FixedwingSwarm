@@ -269,7 +269,7 @@ def update_state_tab(thisport, inteval=1, max_num=100):
             if speed_warning_thread.is_alive() == False:
                 speed_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 速度警告。",), daemon=True)
                 speed_warning_thread.start()
-        if window["-"+thisport+" VoiceWarning-"].get() == True and vehicles[thisport].location.global_relative_frame.alt < 10:
+        if window["-"+thisport+" VoiceWarning-"].get() == True and vehicles[thisport].location.global_relative_frame.alt < 15:
             if altitude_warning_thread.is_alive() == False:
                 altitude_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 高度警告。",), daemon=True)
                 altitude_warning_thread.start()
@@ -551,7 +551,7 @@ if __name__ == "__main__":
                 window["-Status-"].update(port + " selected, connecting...")
                 threading.Thread(target=run_pyttsx3, args=("正在连接"+port,), daemon=True).start()
 
-                threading.Thread(target=vehicle_connect, args=(port, window["-SITL Debug-"].get(), 115200, True, 60,), daemon=True).start()
+                threading.Thread(target=vehicle_connect, args=(port, window["-SITL Debug-"].get(), 57600, True, 60,), daemon=True).start()
         # ------------------------------------------------------------------
         # Event in control tab, must find target_port.
         # Event: Arm/Disarm button.
