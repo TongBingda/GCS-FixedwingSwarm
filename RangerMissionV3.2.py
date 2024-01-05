@@ -6,7 +6,7 @@ and abandon the solution of directly using matplotlib to plot UAV trajectory
 
 2023.07.21 Code that accomplishes two different task functions
 
-2024.01.05 In the mission 1, the UAV swarm pursuit process is realized, 
+2024.01.05 In the mission 2, the UAV swarm pursuit process is realized, 
 and the SITL simulation verification is carried out.
 
 Version 20240105
@@ -112,10 +112,10 @@ def main_control_panel():
             sg.Text("Rally Point:"), sg.Combo(["home_location", "rally_point_1", "rally_point_2", "rally_point_3"], default_value="home_location"), sg.Button("Execute")
         ],
         [
-            sg.Button("Start Mission 1", key="-Start Mission 1-"), 
-            sg.Button("Abort Mission 1", key="-Abort Mission 1-"),
-            sg.Button("Start Mission 2", key="-Start Mission 2-", disabled=True),
-            sg.Button("Abort Mission 2", key="-Abort Mission 2-", disabled=True)
+            sg.Button("Start Mission 1", key="-Start Mission 1-", disabled=True), 
+            sg.Button("Abort Mission 1", key="-Abort Mission 1-", disabled=True),
+            sg.Button("Start Mission 2", key="-Start Mission 2-", disabled=False),
+            sg.Button("Abort Mission 2", key="-Abort Mission 2-", disabled=False)
         ]
     ]
     # left layout: control panel
@@ -172,7 +172,7 @@ def control_tab(thisport):
                 sg.Text("Mode:"), sg.StatusBar("", size=(6,1), key="-"+thisport+" Mode-"), 
                 sg.Combo(mode_list, default_value="GUIDED", size=(10,1), key="-"+thisport+" ModeCombo-"), 
                 sg.Button("Set Mode", key="-"+thisport+" SetMode-"),
-                sg.Checkbox("Voice Warning", default=True, key="-"+thisport+" VoiceWarning-")
+                sg.Checkbox("Voice Warning", default=False, key="-"+thisport+" VoiceWarning-")
             ],
             # new column 5
             [
@@ -238,10 +238,9 @@ def run_pyttsx3(str):
     engine.say(str)
     engine.runAndWait()
 
-def update_state_tab(thisport, inteval=1, max_num=100, warning=False):
-    if warning == True:
-        speed_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 速度警告。",), daemon=True)
-        altitude_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 高度警告。",), daemon=True)
+def update_state_tab(thisport, inteval=1, max_num=10):
+    speed_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 速度警告。",), daemon=True)
+    altitude_warning_thread = threading.Thread(target=run_pyttsx3, args=(thisport+" 高度警告。",), daemon=True)
     while thisport in vehicles_port:
         # layout_l column 1
         window["-"+thisport+" Device-"].update(thisport) # The device name update code is temporarily placed here
@@ -386,60 +385,41 @@ def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True, timeout
 
 def mission_thread(thisport, inteval):
     # Flight Mission loop
+    if thisport == "tcp:127.0.0.1:5762":
+        cmds = vehicles[thisport].commands
+        cmds.clear() # clear old waypoint commands
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))                        
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703112, 115.9169841, 50))
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680220, 115.9169519, 50))
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680801, 115.9147525, 50))
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_JUMP, 0, 0, 1, -1, 0, 0, 0, 0, 0))
+        cmds.upload()
+        vehicles[thisport].commands.next = 0
+        vehicles[thisport].mode = VehicleMode("AUTO")
+        print("Evader 1 Mode Auto")
     while window["-Start Mission 2-"].metadata == True:
-        if thisport == "tcp"
-    # STEP 1. Wait for the aircraft to take off in TAKEOFF mode to the specified altitude
-    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "TAKEOFF":
-        takeoff_alt = 25
-        if vehicles[port].location.global_relative_frame.alt >= takeoff_alt:
-            window["-Status-"].update("Takeoff complete, GUIDED to waypoint.")
-            # Setting the altitude of the rally point
-            rally_alt = 40 + vehicles[port].parameters["SYSID_THISMAV"] * 5 # SYSID_THISMAV: float type 
-            # Setting up drone staging point locations
-            rally_point = LocationGlobalRelative(39.3679571, 115.9155552, rally_alt)
-            vehicles[port].mode = VehicleMode("GUIDED")
-            vehicles[port].simple_goto(rally_point)
-            logger.info(port+" proceed to rally point.")
-            window["-Status-"].update(port+" proceed to rally point.")
-            run_pyttsx3(port+"前往集结点。") 
-            break # Exit the current while loop
-        else:
-            window["-Status-"].update("Waiting for takeoff.")
-            run_pyttsx3(port+"等待起飞。")
-            time.sleep(inteval)
-    # Step 2. Wait for vehicle reach the rally point
-    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "GUIDED":
-        reach_distance = 100
-        if get_distance_metres(vehicles[port].location.global_relative_frame, rally_point) <= reach_distance:
-            vehicles_reached_rally_point[port] = True
-            hover_time_start = time.time()
-            logger.info(port+" has reached rally point.")
-            window["-Status-"].update(port+" has reached rally point.")
-            run_pyttsx3(port+"已到达集结点。")
-            break
-        else:
-            time.sleep(inteval)
-    # Step 3. Set vehicle to AUTO mode.
-    while window["-Start Mission 2-"].metadata == True and vehicles[port].mode.name == "GUIDED":
-        if all(value == True for value in vehicles_reached_rally_point.values()) == True:
-            wait_time = 5 + vehicles[port].parameters["SYSID_THISMAV"] * 3
-            time.sleep(wait_time)
-            vehicles[port].mode = VehicleMode("AUTO")
-            logger.info("All vehicles has reached rally point, vehicle is set to AUTO mode.")
-            window["-Status-"].update("All vehicles has reached rally point, vehicle is set to AUTO mode.")
-            run_pyttsx3(port+"切换为自动模式。")
-            break
-        else:
-            # If there is no guarantee that all aircraft will arrive at the assembly point after a certain period of time.
-            # The mode of vehicle will be forced to be set to auto.
-            if time.time() - hover_time_start > 60: 
-                vehicles[port].mode = VehicleMode("AUTO")
-                logger.info("Exceeding the maximum wait time, vehicle switches to AUTO mode.")
-                window["-Status-"].update("Exceeding the maximum wait time, vehicle switches to AUTO mode.")
-                run_pyttsx3(port+"切换为自动模式。")
-            time.sleep(inteval)
+        if thisport != "tcp:127.0.0.1:5762": # other evaders
+            next_waypoint_index = vehicles["tcp:127.0.0.1:5762"].commands.next
+            next_waypoint_lat = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].x
+            next_waypoint_lon = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].y
+            next_waypoint_alt = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].z
+            next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
+            thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
+            evader1_distance = get_distance_metres(next_waypoint_location, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame)
+            
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            # print("Vehicle 5772 GUIDED")
+            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 5))
+            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame))
+            if thisport_distance > evader1_distance:
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 2
+            else:
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 2
+            
+        time.sleep(1)
 
-    window["-Start Mission 2-"].metadata = False # exit Mission 2
+    # window["-Start Mission 2-"].metadata = False # exit Mission 2
     
 
 if __name__ == "__main__":
