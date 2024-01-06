@@ -111,17 +111,26 @@ def main_control_panel():
         [
             sg.Text("Rally Point:"), sg.Combo(["home_location", "rally_point_1", "rally_point_2", "rally_point_3"], default_value="home_location"), sg.Button("Execute")
         ],
+        # column 5
         [
             sg.Button("Start Mission 1", key="-Start Mission 1-", disabled=True), 
             sg.Button("Abort Mission 1", key="-Abort Mission 1-", disabled=True),
             sg.Button("Start Mission 2", key="-Start Mission 2-", disabled=False),
             sg.Button("Abort Mission 2", key="-Abort Mission 2-", disabled=False)
+        ],
+        # column 6
+        [
+            sg.Radio("Stage 1", "Mission Stage", default=True, key="-Mission Stage 1-"),
+            sg.Radio("Stage 2", "Mission Stage", default=False, key="-Mission Stage 2-"),
+            sg.Radio("Stage 3", "Mission Stage", default=False, key="-Mission Stage 3-"),
+            sg.Radio("Stage 4", "Mission Stage", default=False, key="-Mission Stage 4-"),
+            sg.Radio("Stage 5", "Mission Stage", default=False, key="-Mission Stage 5-")
         ]
     ]
     # left layout: control panel
     layout_l = [
         [sg.Button("Refresh Ports", key="-Refresh Ports-"), sg.Text("Ports:", justification="left"), sg.Combo([], size=(18,1), key="-Ports-"), sg.Button("Connect", key="-Connect-")],
-        [sg.Text("Vehicle Team:"), sg.Radio("Red", "Team Radio", default=True, key="-Radio Red-"), sg.Radio("Blue", "Team Radio", default=False, key="-Radio Blue-")],
+        [sg.Text("Vehicle Color:"), sg.Radio("Red", "Team Radio", default=True, key="-Radio Red-"), sg.Radio("Blue", "Team Radio", default=False, key="-Radio Blue-"), sg.Radio("Green", "Team Radio", default=False, key="-Radio Green-"), sg.Radio("Yellow", "Team Radio", default=False, key="-Radio Yellow-")],
         [sg.TabGroup([], key="-Tab Group-")],
         [sg.Frame("Global Control", global_control)]
     ]
@@ -350,6 +359,10 @@ def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True, timeout
             vehicles_team[port] = "red"
         elif window["-Radio Blue-"].get() == True:
             vehicles_team[port] = "blue"
+        elif window["-Radio Green-"].get() == True:
+            vehicles_team[port] = "green"
+        elif window["-Radio Yellow-"].get() == True:
+            vehicles_team[port] = "yellow"
         else:
             logger.error("Vehicle team set error.")
             window["-Status-"].update("Vehicle team set error.")
@@ -384,8 +397,13 @@ def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True, timeout
 
 
 def mission_thread(thisport, inteval):
-    # Flight Mission loop
-    if thisport == "tcp:127.0.0.1:5762":
+    # define evader and pursuer ports
+    evader1_port = "tcp:127.0.0.1:5762"
+    evader2_port = "tcp:127.0.0.1:5772"
+    evader3_port = "tcp:127.0.0.1:5782"
+    pursuer_port = "tcp:127.0.0.1:5792"
+    # Flight Mission loop, for "Mission 2" button
+    if thisport == evader1_port: # Evader 1 push waypoints
         cmds = vehicles[thisport].commands
         cmds.clear() # clear old waypoint commands
         cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))
@@ -398,8 +416,13 @@ def mission_thread(thisport, inteval):
         vehicles[thisport].commands.next = 0
         vehicles[thisport].mode = VehicleMode("AUTO")
         print("Evader 1 Mode Auto")
-    while window["-Start Mission 2-"].metadata == True:
-        if thisport != "tcp:127.0.0.1:5762": # other evaders
+    elif thisport == pursuer_port: # Pursuer guided to waiting waypoint
+        vehicles[thisport].mode = VehicleMode("GUIDED")
+        vehicles[thisport].simple_goto(LocationGlobalRelative(39.3707923, 115.9153962, 65))
+
+    # In Mission Stage 1, the team of Evaders begins to assemble
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 1-"].get() == True:
+        if thisport == "tcp:127.0.0.1:5772" or thisport == "tcp:127.0.0.1:5782": # Evader 2 3 
             next_waypoint_index = vehicles["tcp:127.0.0.1:5762"].commands.next
             next_waypoint_lat = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].x
             next_waypoint_lon = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].y
@@ -416,8 +439,49 @@ def mission_thread(thisport, inteval):
                 vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 3
             else:
                 vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 3
+        time.sleep(0.2)
+    
+    # In Mission Stage 2,  the Pursuer begins to chase
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 2-"].get() == True:
+        # pursuer 
+        if thisport == "tcp:127.0.0.1:5792":
+            next_waypoint_index = vehicles["tcp:127.0.0.1:5762"].commands.next
+            next_waypoint_lat = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].x
+            next_waypoint_lon = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].y
+            next_waypoint_alt = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].z
+            next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
+            thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
+            evader1_distance = get_distance_metres(next_waypoint_location, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame)
             
-        time.sleep(0.1)
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            # print("Vehicle 5772 GUIDED")
+            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, 65))
+            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame))
+            if thisport_distance > evader1_distance:
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 3
+            else:
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 3
+        # evader 2 and 3
+        elif thisport == "tcp:127.0.0.1:5772" or thisport == "tcp:127.0.0.1:5782":
+            get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5792"])
+            next_waypoint_index = vehicles["tcp:127.0.0.1:5762"].commands.next
+            next_waypoint_lat = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].x
+            next_waypoint_lon = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].y
+            next_waypoint_alt = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].z
+            next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
+            thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
+            evader1_distance = get_distance_metres(next_waypoint_location, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame)
+            
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            # print("Vehicle 5772 GUIDED")
+            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 5))
+            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame))
+            if thisport_distance > evader1_distance:
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 3
+            else:
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 3
+        
+        time.sleep(0.2)
 
     # window["-Start Mission 2-"].metadata = False # exit Mission 2
     
@@ -696,6 +760,8 @@ if __name__ == "__main__":
                 cmds = vehicles[port].commands
                 cmds.clear() # clear old waypoint commands
                 cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_LAND_START, 0, 0, 0, 0, 0, 0, 39.3654715, 115.916217, 50))
+                # The first waypoint command is written twice to prevent it from being executed
+                cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_LAND_START, 0, 0, 0, 0, 0, 0, 39.3654715, 115.916217, 50))
                 cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3654632, 115.9154123, 50))
                 cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3669054, 115.9153989, 30))
                 cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680635, 115.9154069, 15))
@@ -766,31 +832,14 @@ if __name__ == "__main__":
             window["-Status-"].update("Global control set to QLOITER mode.")
 
         # Event: Start Mission 1 button pressed, perform the pursuit mission procedure
+        # Disabled
         if event == "-Start Mission 1-":
             if window["-Start Mission 1-"].metadata == False:
                 window["-Start Mission 1-"].metadata = True
             window["-Status-"].update("Start mission 1.")
             logger.info("Start mission 1.")
             for port in vehicles_port:
-                if port == "tcp:127.0.0.1:5762": # Vehicle 1, evader
-                    # evader 1 需要执行auto模式，模式里写入了一系列航点，航点永久循环
-                    cmds = vehicles[port].commands
-                    cmds.clear() # clear old waypoint commands
-                    cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))
-                    cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))                        
-                    cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703112, 115.9169841, 50))
-                    cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680220, 115.9169519, 50))
-                    cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680801, 115.9147525, 50))
-                    cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_JUMP, 0, 0, 1, -1, 0, 0, 0, 0, 0))
-                    cmds.upload()
-                    vehicles[port].commands.next = 0
-                    vehicles[port].mode = VehicleMode("AUTO")
-                elif port == "tcp:127.0.0.1:5772":
-                    print("evader 2")
-                elif port == "tcp:127.0.0.1:5782":
-                    print("evader 3")
-                elif port == "tcp:127.0.0.1:5792":
-                    print("pursuer 4")
+                print(port)
 
         # Event: Abort Mission 1 button pressed, all vehicles set to RTL mode
         if event == "-Abort Mission 1-":
