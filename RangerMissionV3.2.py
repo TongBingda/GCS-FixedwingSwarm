@@ -413,11 +413,11 @@ def mission_thread(thisport, inteval):
             vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 5))
             print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame))
             if thisport_distance > evader1_distance:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 2
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 3
             else:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 2
+                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 3
             
-        time.sleep(1)
+        time.sleep(0.1)
 
     # window["-Start Mission 2-"].metadata = False # exit Mission 2
     
