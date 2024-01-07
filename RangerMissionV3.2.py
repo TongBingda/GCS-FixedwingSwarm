@@ -124,7 +124,8 @@ def main_control_panel():
             sg.Radio("Stage 2", "Mission Stage", default=False, key="-Mission Stage 2-"),
             sg.Radio("Stage 3", "Mission Stage", default=False, key="-Mission Stage 3-"),
             sg.Radio("Stage 4", "Mission Stage", default=False, key="-Mission Stage 4-"),
-            sg.Radio("Stage 5", "Mission Stage", default=False, key="-Mission Stage 5-")
+            sg.Radio("Stage 5", "Mission Stage", default=False, key="-Mission Stage 5-"),
+            sg.Checkbox("CatchUp", default=False, disabled=True, key="-CatchUp Flag-")
         ]
     ]
     # left layout: control panel
@@ -402,6 +403,11 @@ def mission_thread(thisport, inteval):
     evader2_port = "tcp:127.0.0.1:5772"
     evader3_port = "tcp:127.0.0.1:5782"
     pursuer_port = "tcp:127.0.0.1:5792"
+
+    pursuer_waiting_waypoint = LocationGlobalRelative(39.3707923, 115.9153962, 65)
+    escape_target_waypoint_lat = 39.3692413
+    escape_target_waypoint_lon = 115.9154069
+
     # Flight Mission loop, for "Mission 2" button
     if thisport == evader1_port: # Evader 1 push waypoints
         cmds = vehicles[thisport].commands
@@ -418,72 +424,113 @@ def mission_thread(thisport, inteval):
         print("Evader 1 Mode Auto")
     elif thisport == pursuer_port: # Pursuer guided to waiting waypoint
         vehicles[thisport].mode = VehicleMode("GUIDED")
-        vehicles[thisport].simple_goto(LocationGlobalRelative(39.3707923, 115.9153962, 65))
+        vehicles[thisport].simple_goto(pursuer_waiting_waypoint)
 
     # In Mission Stage 1, the team of Evaders begins to assemble
     while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 1-"].get() == True:
-        if thisport == "tcp:127.0.0.1:5772" or thisport == "tcp:127.0.0.1:5782": # Evader 2 3 
-            next_waypoint_index = vehicles["tcp:127.0.0.1:5762"].commands.next
-            next_waypoint_lat = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].x
-            next_waypoint_lon = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].y
-            next_waypoint_alt = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].z
-            next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
-            thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
-            evader1_distance = get_distance_metres(next_waypoint_location, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame)
-            
+        # clear catchup flag
+        window["-CatchUp Flag-"].update(value=False)
+        # get evader 1's next wayoint
+        next_waypoint_index = vehicles[evader1_port].commands.next
+        next_waypoint_lat = vehicles[evader1_port].commands[next_waypoint_index - 1].x
+        next_waypoint_lon = vehicles[evader1_port].commands[next_waypoint_index - 1].y
+        next_waypoint_alt = vehicles[evader1_port].commands[next_waypoint_index - 1].z
+        next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
+        # get relative distance
+        thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
+        evader1_distance = get_distance_metres(next_waypoint_location, vehicles[evader1_port].location.global_relative_frame)
+        # guided to evader 1's next waypoint according to vehicle number
+        if thisport == evader2_port: # Evader 2
             vehicles[thisport].mode = VehicleMode("GUIDED")
-            # print("Vehicle 5772 GUIDED")
             vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 5))
-            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame))
+            # airspeed control
             if thisport_distance > evader1_distance:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 3
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
             else:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 3
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
+        elif thisport == evader3_port:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt + 10))
+            # airspeed control
+            if thisport_distance > evader1_distance:
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+            else:
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
         time.sleep(0.2)
     
     # In Mission Stage 2,  the Pursuer begins to chase
     while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 2-"].get() == True:
+        # get evader 1's next waypoint
+        next_waypoint_index = vehicles[evader1_port].commands.next
+        next_waypoint_lat = vehicles[evader1_port].commands[next_waypoint_index - 1].x
+        next_waypoint_lon = vehicles[evader1_port].commands[next_waypoint_index - 1].y
+        next_waypoint_alt = vehicles[evader1_port].commands[next_waypoint_index - 1].z
+        next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
+        thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
+        evader1_distance = get_distance_metres(next_waypoint_location, vehicles[evader1_port].location.global_relative_frame)        
         # pursuer 
-        if thisport == "tcp:127.0.0.1:5792":
-            next_waypoint_index = vehicles["tcp:127.0.0.1:5762"].commands.next
-            next_waypoint_lat = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].x
-            next_waypoint_lon = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].y
-            next_waypoint_alt = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].z
-            next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
-            thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
-            evader1_distance = get_distance_metres(next_waypoint_location, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame)
-            
+        if thisport == pursuer_port:
             vehicles[thisport].mode = VehicleMode("GUIDED")
-            # print("Vehicle 5772 GUIDED")
-            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, 65))
-            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame))
-            if thisport_distance > evader1_distance:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 3
-            else:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 3
+            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt + 15))
+            vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+            catchup_distance = get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles[evader1_port].location.global_relative_frame)
+            print(catchup_distance)
+            # if pursuer catch up evaders
+            if catchup_distance <= 60:
+                window["-CatchUp Flag-"].update(value=True) # set catchup_flag
+
         # evader 2 and 3
-        elif thisport == "tcp:127.0.0.1:5772" or thisport == "tcp:127.0.0.1:5782":
-            get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5792"])
-            next_waypoint_index = vehicles["tcp:127.0.0.1:5762"].commands.next
-            next_waypoint_lat = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].x
-            next_waypoint_lon = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].y
-            next_waypoint_alt = vehicles["tcp:127.0.0.1:5762"].commands[next_waypoint_index - 1].z
-            next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
-            thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
-            evader1_distance = get_distance_metres(next_waypoint_location, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame)
-            
-            vehicles[thisport].mode = VehicleMode("GUIDED")
-            # print("Vehicle 5772 GUIDED")
-            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 5))
-            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles["tcp:127.0.0.1:5762"].location.global_relative_frame))
-            if thisport_distance > evader1_distance:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed + 3
-            else:
-                vehicles[thisport].airspeed = vehicles["tcp:127.0.0.1:5762"].airspeed - 3
+        elif thisport == evader2_port:
+            if window["-CatchUp Flag-"].get() == False:
+                vehicles[thisport].mode = VehicleMode("GUIDED")
+                vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 5))
+                if thisport_distance > evader1_distance:
+                    vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+                else:
+                    vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
+            else: # pursuer catch up evaders
+                vehicles[thisport].mode = VehicleMode("GUIDED")
+                vehicles[thisport].simple_goto(LocationGlobalRelative(escape_target_waypoint_lat, escape_target_waypoint_lon, next_waypoint_alt + 5))
+        
+        elif thisport == evader3_port:
+            if window["-CatchUp Flag-"].get() == False:
+                vehicles[thisport].mode = VehicleMode("GUIDED")
+                vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt + 10))
+                if thisport_distance > evader1_distance:
+                    vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+                else:
+                    vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
+            else: # pursuer catch up evaders
+                vehicles[thisport].mode = VehicleMode("GUIDED")
+                vehicles[thisport].simple_goto(LocationGlobalRelative(escape_target_waypoint_lat, escape_target_waypoint_lon, next_waypoint_alt + 10))
         
         time.sleep(0.2)
 
-    # window["-Start Mission 2-"].metadata = False # exit Mission 2
+    # In Mission Stage 3, evader 2 and 3 return to formation and pursuer back to waiting waypoint
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 3-"].get() == True:
+        if thisport == pursuer_port:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(pursuer_waiting_waypoint)
+        elif thisport == evader2_port:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 5))
+            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles[evader1_port].location.global_relative_frame))
+            # airspeed control
+            if thisport_distance > evader1_distance:
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+            else:
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
+        elif thisport == evader3_port:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 10))
+            print(get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles[evader1_port].location.global_relative_frame))
+            # airspeed control
+            if thisport_distance > evader1_distance:
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+            else:
+                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
+    
+    
     
 
 if __name__ == "__main__":
