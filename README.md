@@ -36,3 +36,10 @@ python setup.py install
 
 有问题请发邮件至tongbingda@buaa.edu.cn，我随缘解答，随缘更新，随缘修bug。
 
+5.20240108更新，在使用基站时，无人机上的任务机应当运行Mavproxy转发程序
+
+```
+home/bafs/.local/bin/mavproxy.py --out=tcpin:192.168.1.xxx:8080
+```
+
+地面站应当选中Simulation/Base Station选项才能正常连接
