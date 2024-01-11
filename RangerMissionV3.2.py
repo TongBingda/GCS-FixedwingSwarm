@@ -405,9 +405,33 @@ def mission_thread(thisport, inteval):
     evader3_port = "tcp:127.0.0.1:5782"
     pursuer_port = "tcp:127.0.0.1:5792"
 
-    pursuer_waiting_waypoint = LocationGlobalRelative(39.3717923, 115.9153962, 80)
+    pursuer_waiting_waypoint = LocationGlobalRelative(39.3710100, 115.9153962, 80)
 
     # Flight Mission loop, for "Mission 2" button
+
+    # In Mission Stage 1, pursuer and evaders change alt and seperate to wait takeoff complete
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 1-"].get() == True:
+        pursuer_takeoff_waypoint = LocationGlobalRelative(39.3700873, 115.9154177, 80)
+        evader1_takeoff_waypoint = LocationGlobalRelative(39.3697534, 115.9154096, 50)
+        evader2_takeoff_waypoint = LocationGlobalRelative(39.3694238, 115.9154123, 60)
+        evader3_takeoff_waypoint = LocationGlobalRelative(39.3690339, 115.9154043, 70)
+
+        if thisport == pursuer_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(pursuer_takeoff_waypoint)
+        elif thisport == evader1_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(evader1_takeoff_waypoint)
+        elif thisport == evader2_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(evader2_takeoff_waypoint)
+        elif thisport == evader3_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(evader3_takeoff_waypoint)
+
+        time.sleep(1)
+
+    # evader 1 and pursuer guided to waypoint
     if thisport == evader1_port: # Evader 1 push waypoints
         cmds = vehicles[thisport].commands
         cmds.clear() # clear old waypoint commands
@@ -425,8 +449,8 @@ def mission_thread(thisport, inteval):
         vehicles[thisport].mode = VehicleMode("GUIDED")
         vehicles[thisport].simple_goto(pursuer_waiting_waypoint)
 
-    # In Mission Stage 1, the team of Evaders begins to assemble
-    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 1-"].get() == True:
+    # In Mission Stage 2, the team of Evaders begins to assemble
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 2-"].get() == True:
         # clear catchup flag
         window["-CatchUp Flag-"].update(value=False)
         # get evader 1's next wayoint
@@ -455,11 +479,11 @@ def mission_thread(thisport, inteval):
                 vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
             else:
                 vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
-        time.sleep(0.2)
+        time.sleep(1)
     logger.info("Mission Stage 1 end.")
 
-    # In Mission Stage 2,  the Pursuer begins to chase
-    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 2-"].get() == True:
+    # In Mission Stage 3,  the Pursuer begins to chase
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 3-"].get() == True:
         logger.info(thisport + ": lat=" + str(vehicles[thisport].location.global_relative_frame.lat) + " lon=" + str(vehicles[thisport].location.global_relative_frame.lon))
         # get evader 1's next waypoint
         next_waypoint_index = vehicles[evader1_port].commands.next
@@ -525,11 +549,11 @@ def mission_thread(thisport, inteval):
                 vehicles[thisport].mode = VehicleMode("GUIDED")
                 vehicles[thisport].send_mavlink(escape_msg)
         
-        time.sleep(0.2)
-    logger.info("Mission Stage 2 end.")
+        time.sleep(1)
+    logger.info("Mission Stage 3 end.")
 
-    # In Mission Stage 3, evader 2 and 3 return to formation and pursuer back to waiting waypoint
-    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 3-"].get() == True:
+    # In Mission Stage 4, evader 2 and 3 return to formation and pursuer back to waiting waypoint
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 4-"].get() == True:
         # get evader 1's next waypoint
         next_waypoint_index = vehicles[evader1_port].commands.next
         next_waypoint_lat = vehicles[evader1_port].commands[next_waypoint_index - 1].x
@@ -561,8 +585,8 @@ def mission_thread(thisport, inteval):
                 vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
             else:
                 vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
-        time.sleep(0.2)
-    logger.info("Mission Stage 3 end.")
+        time.sleep(1)
+    logger.info("Mission Stage 4 end.")
     
 
 if __name__ == "__main__":
