@@ -400,10 +400,16 @@ def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True, timeout
 
 def mission_thread(thisport, inteval):
     # define evader and pursuer ports
-    evader1_port = "tcp:127.0.0.1:5762"
-    evader2_port = "tcp:127.0.0.1:5772"
-    evader3_port = "tcp:127.0.0.1:5782"
-    pursuer_port = "tcp:127.0.0.1:5792"
+    # for sitl
+    # evader1_port = "tcp:127.0.0.1:5762"
+    # evader2_port = "tcp:127.0.0.1:5772"
+    # evader3_port = "tcp:127.0.0.1:5782"
+    # pursuer_port = "tcp:127.0.0.1:5792"
+    # for real vehicles
+    evader1_port = "COM16"
+    evader2_port = "COM34"
+    evader3_port = "COM35"
+    pursuer_port = "COM39"
 
     pursuer_waiting_waypoint = LocationGlobalRelative(39.3710100, 115.9153962, 80)
 
@@ -411,10 +417,15 @@ def mission_thread(thisport, inteval):
 
     # In Mission Stage 1, pursuer and evaders change alt and seperate to wait takeoff complete
     while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 1-"].get() == True:
-        pursuer_takeoff_waypoint = LocationGlobalRelative(39.3700873, 115.9154177, 80)
-        evader1_takeoff_waypoint = LocationGlobalRelative(39.3697534, 115.9154096, 50)
-        evader2_takeoff_waypoint = LocationGlobalRelative(39.3694238, 115.9154123, 60)
-        evader3_takeoff_waypoint = LocationGlobalRelative(39.3690339, 115.9154043, 70)
+        # pursuer_takeoff_waypoint = LocationGlobalRelative(39.3700873, 115.9154177, 80)
+        # evader1_takeoff_waypoint = LocationGlobalRelative(39.3696145, 115.9154123, 50)
+        # evader2_takeoff_waypoint = LocationGlobalRelative(39.3691376, 115.9154123, 60)
+        # evader3_takeoff_waypoint = LocationGlobalRelative(39.3686731, 115.9154123, 70)
+
+        pursuer_takeoff_waypoint = LocationGlobalRelative(39.3703444, 115.9147632, 50)
+        evader1_takeoff_waypoint = LocationGlobalRelative(39.3703112, 115.9162223, 60)
+        evader2_takeoff_waypoint = LocationGlobalRelative(39.3682957, 115.9147739, 70)
+        evader3_takeoff_waypoint = LocationGlobalRelative(39.368304, 115.9162331, 80)
 
         if thisport == pursuer_port and vehicles[thisport].location.global_relative_frame.alt > 30:
             vehicles[thisport].mode = VehicleMode("GUIDED")
@@ -431,56 +442,130 @@ def mission_thread(thisport, inteval):
 
         time.sleep(1)
 
-    # evader 1 and pursuer guided to waypoint
-    if thisport == evader1_port: # Evader 1 push waypoints
+    # 20240114 2v2 combat
+    if thisport == pursuer_port: # pursuer port
         cmds = vehicles[thisport].commands
-        cmds.clear() # clear old waypoint commands
+        cmds.clear()
         cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))
         cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))                        
-        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703112, 115.9169841, 50))
-        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680220, 115.9169519, 50))
-        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3680801, 115.9147525, 50))
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703112, 115.9162223, 50))
         cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_JUMP, 0, 0, 1, -1, 0, 0, 0, 0, 0))
         cmds.upload()
         vehicles[thisport].commands.next = 0
         vehicles[thisport].mode = VehicleMode("AUTO")
-        print("Evader 1 Mode Auto")
-    elif thisport == pursuer_port: # Pursuer guided to waiting waypoint
-        vehicles[thisport].mode = VehicleMode("GUIDED")
-        vehicles[thisport].simple_goto(pursuer_waiting_waypoint)
+    elif thisport == evader1_port:
+        cmds = vehicles[thisport].commands
+        cmds.clear()
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 60))
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 60))                        
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703112, 115.9162223, 60))
+        cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_JUMP, 0, 0, 1, -1, 0, 0, 0, 0, 0))
+        cmds.upload()
+        vehicles[thisport].commands.next = 0
+        vehicles[thisport].mode = VehicleMode("AUTO")
+    time.sleep(2)
+    # In Mission Stage 2, evader2 and evader 3 begin to chase
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 2-"].get() == True:
+        
+        if thisport == evader2_port:
+            pursuer_lat = vehicles[pursuer_port].location.global_relative_frame.lat
+            pursuer_lon = vehicles[pursuer_port].location.global_relative_frame.lon
+            if get_distance_metres(vehicles[pursuer_port].location.global_relative_frame, vehicles[thisport].location.global_relative_frame) > 90:
+                vehicles[thisport].simple_goto(LocationGlobalRelative(pursuer_lat, pursuer_lon, 70))
+            else:
+                pursuer_bearing = get_bearing_degree(vehicles[pursuer_port].location.global_relative_frame, vehicles[thisport].location.global_relative_frame)
+                # escape message for evader2
+                heading_type = 1 # HEADING_TYPE_HEADING
+                heading_target = pursuer_bearing # deg
+                heading_roc = 10 # heading rate-of-change
+                escape_msg = vehicles[thisport].message_factory.command_long_encode(
+                    0, 0,   # target system, target component
+                    mavutil.mavlink.MAV_CMD_GUIDED_CHANGE_HEADING,  # command
+                    0,  # confirmation
+                    heading_type,     # course-over-ground or raw vehicle heading.
+                    heading_target, # Target heading. min:0 max:359.99	deg
+                    heading_roc,    # Maximum centripetal accelearation, ie rate of change, toward new heading. m/s/s
+                    0, 0, 0, 0  # param 4 - 7
+                )
+                vehicles[thisport].mode = VehicleMode("GUIDED")
+                vehicles[thisport].send_mavlink(escape_msg)
+        elif thisport == evader3_port:
+            evader1_lat = vehicles[evader1_port].location.global_relative_frame.lat
+            evader1_lon = vehicles[evader1_port].location.global_relative_frame.lon
+            if get_distance_metres(vehicles[evader1_port].location.global_relative_frame, vehicles[thisport].location.global_relative_frame) > 90:
+                vehicles[thisport].simple_goto(LocationGlobalRelative(evader1_lat, evader1_lon, 80))
+            else:
+                evader1_bearing = get_bearing_degree(vehicles[evader1_port].location.global_relative_frame, vehicles[thisport].location.global_relative_frame)
+                # escape message for evader3
+                heading_type = 1 # HEADING_TYPE_HEADING
+                heading_target = evader1_bearing # deg
+                heading_roc = 10 # heading rate-of-change
+                escape_msg = vehicles[thisport].message_factory.command_long_encode(
+                    0, 0,   # target system, target component
+                    mavutil.mavlink.MAV_CMD_GUIDED_CHANGE_HEADING,  # command
+                    0,  # confirmation
+                    heading_type,     # course-over-ground or raw vehicle heading.
+                    heading_target, # Target heading. min:0 max:359.99	deg
+                    heading_roc,    # Maximum centripetal accelearation, ie rate of change, toward new heading. m/s/s
+                    0, 0, 0, 0  # param 4 - 7
+                )
+                vehicles[thisport].mode = VehicleMode("GUIDED")
+                vehicles[thisport].send_mavlink(escape_msg)
+
+        time.sleep(1)
+    
+    # evader 1 and pursuer guided to waypoint
+    # if thisport == evader1_port: # Evader 1 push waypoints
+    #     cmds = vehicles[thisport].commands
+    #     cmds.clear() # clear old waypoint commands
+    #     cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))
+    #     cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703444, 115.9147632, 50))                        
+    #     cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3703112, 115.9162223, 50))
+    #     cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3683040, 115.9162331, 50))
+    #     cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0, 0, 0, 0, 39.3682957, 115.9147739, 50))
+    #     cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_JUMP, 0, 0, 1, -1, 0, 0, 0, 0, 0))
+    #     cmds.upload()
+    #     vehicles[thisport].commands.next = 0
+    #     vehicles[thisport].mode = VehicleMode("AUTO")
+    #     print("Evader 1 Mode Auto")
+    # elif thisport == pursuer_port: # Pursuer guided to waiting waypoint
+    #     vehicles[thisport].mode = VehicleMode("GUIDED")
+    #     vehicles[thisport].simple_goto(pursuer_waiting_waypoint)
+
+    # time.sleep(2)
 
     # In Mission Stage 2, the team of Evaders begins to assemble
-    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 2-"].get() == True:
-        # clear catchup flag
-        window["-CatchUp Flag-"].update(value=False)
-        # get evader 1's next wayoint
-        next_waypoint_index = vehicles[evader1_port].commands.next
-        next_waypoint_lat = vehicles[evader1_port].commands[next_waypoint_index - 1].x
-        next_waypoint_lon = vehicles[evader1_port].commands[next_waypoint_index - 1].y
-        next_waypoint_alt = vehicles[evader1_port].commands[next_waypoint_index - 1].z
-        next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
-        # get relative distance
-        thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
-        evader1_distance = get_distance_metres(next_waypoint_location, vehicles[evader1_port].location.global_relative_frame)
-        # guided to evader 1's next waypoint according to vehicle number
-        if thisport == evader2_port: # Evader 2
-            vehicles[thisport].mode = VehicleMode("GUIDED")
-            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 10))
-            # airspeed control
-            if thisport_distance > evader1_distance:
-                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
-            else:
-                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
-        elif thisport == evader3_port:
-            vehicles[thisport].mode = VehicleMode("GUIDED")
-            vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt + 20))
-            # airspeed control
-            if thisport_distance > evader1_distance:
-                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
-            else:
-                vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
-        time.sleep(1)
-    logger.info("Mission Stage 1 end.")
+    # while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 2-"].get() == True:
+    #     # clear catchup flag
+    #     window["-CatchUp Flag-"].update(value=False)
+    #     # get evader 1's next wayoint
+    #     next_waypoint_index = vehicles[evader1_port].commands.next
+    #     next_waypoint_lat = vehicles[evader1_port].commands[next_waypoint_index - 1].x
+    #     next_waypoint_lon = vehicles[evader1_port].commands[next_waypoint_index - 1].y
+    #     next_waypoint_alt = vehicles[evader1_port].commands[next_waypoint_index - 1].z
+    #     next_waypoint_location = LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt)
+    #     # get relative distance
+    #     thisport_distance = get_distance_metres(next_waypoint_location, vehicles[thisport].location.global_relative_frame)
+    #     evader1_distance = get_distance_metres(next_waypoint_location, vehicles[evader1_port].location.global_relative_frame)
+    #     # guided to evader 1's next waypoint according to vehicle number
+    #     if thisport == evader2_port: # Evader 2
+    #         vehicles[thisport].mode = VehicleMode("GUIDED")
+    #         vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat,next_waypoint_lon,next_waypoint_alt + 10))
+    #         # airspeed control
+    #         if thisport_distance > evader1_distance:
+    #             vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+    #         else:
+    #             vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
+    #     elif thisport == evader3_port:
+    #         vehicles[thisport].mode = VehicleMode("GUIDED")
+    #         vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt + 20))
+    #         # airspeed control
+    #         if thisport_distance > evader1_distance:
+    #             vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
+    #         else:
+    #             vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
+    #     time.sleep(1)
+    # logger.info("Mission Stage 1 end.")
 
     # In Mission Stage 3,  the Pursuer begins to chase
     while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 3-"].get() == True:
@@ -514,12 +599,13 @@ def mission_thread(thisport, inteval):
         if thisport == pursuer_port:
             vehicles[thisport].mode = VehicleMode("GUIDED")
             vehicles[thisport].simple_goto(LocationGlobalRelative(next_waypoint_lat, next_waypoint_lon, next_waypoint_alt + 30))
+            # vehicles[thisport].simple_goto()
             vehicles[thisport].airspeed = vehicles[evader1_port].airspeed + 3
             catchup_distance = get_distance_metres(vehicles[thisport].location.global_relative_frame, vehicles[evader1_port].location.global_relative_frame)
             print(catchup_distance)
             # if pursuer catch up evaders
             if catchup_distance <= 80:
-                window["-CatchUp Flag-"].update(value=True) # set catchup_flag
+                # window["-CatchUp Flag-"].update(value=True) # set catchup_flag
                 logger.info("Pursuer catch up evaders.")
             else:
                 window["-CatchUp Flag-"].update(value=False) # clear catchup_flag
@@ -587,7 +673,30 @@ def mission_thread(thisport, inteval):
                 vehicles[thisport].airspeed = vehicles[evader1_port].airspeed - 3
         time.sleep(1)
     logger.info("Mission Stage 4 end.")
-    
+
+    # In Mission Stage 5, pursuer and evaders back to takeoff waypoints
+    while window["-Start Mission 2-"].metadata == True and window["-Mission Stage 5-"].get() == True:
+        pursuer_takeoff_waypoint = LocationGlobalRelative(39.3700873, 115.9154177, 80)
+        evader1_takeoff_waypoint = LocationGlobalRelative(39.3696145, 115.9154123, 50)
+        evader2_takeoff_waypoint = LocationGlobalRelative(39.3691376, 115.9154123, 60)
+        evader3_takeoff_waypoint = LocationGlobalRelative(39.3686731, 115.9154123, 70)
+
+        if thisport == pursuer_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(pursuer_takeoff_waypoint)
+        elif thisport == evader1_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(evader1_takeoff_waypoint)
+        elif thisport == evader2_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(evader2_takeoff_waypoint)
+        elif thisport == evader3_port and vehicles[thisport].location.global_relative_frame.alt > 30:
+            vehicles[thisport].mode = VehicleMode("GUIDED")
+            vehicles[thisport].simple_goto(evader3_takeoff_waypoint)
+
+        time.sleep(1)
+    logger.info("Mission Stage 5 end.")
+
 
 if __name__ == "__main__":
     # System and logger config
