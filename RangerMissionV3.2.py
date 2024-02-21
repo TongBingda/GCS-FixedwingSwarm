@@ -455,6 +455,7 @@ def vehicle_connect(port, sitl_debug=False, baud=57600, wait_ready=True, timeout
 
 
 # mission_thread() for task assignment and target protect
+# 20240221 by tongbingda
 def mission_thread(thisport, inteval):
     # define evaders and pursuers ports
     evader1_port = "tcp:127.0.0.1:5762"
